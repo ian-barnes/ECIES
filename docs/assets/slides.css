@@ -1,0 +1,42 @@
+.reveal p {
+  text-align: left;
+  font-size: 80%;
+}
+
+.reveal blockquote {
+  width: 100%;
+}
+
+.reveal h2 {
+  font-size: 2em;
+  text-transform: none;
+}
+
+.reveal h3 {
+  font-size: 1.2em;
+  text-transform: none;
+}
+
+.reveal pre code {
+  width: 100%;
+  font-size: 60%;
+  line-height: 1.2em;
+  max-height: 80%;
+}
+
+.reveal ul,
+.reveal ol{
+  font-size: 80%; 
+}
+
+.reveal ul li ul,
+.reveal ol li ol,
+.reveal ol li ul,
+.reveal ul li ol,
+.reveal ul li p,
+.reveal ol li p,
+.reveal ul li,
+.reveal ol li
+{
+  font-size: 100%;
+}
