@@ -35,63 +35,93 @@
 ## Typical simple hybrid scheme
 
 1. Alice generates a unique symmetric key and encrypts the message with it.
-2. Alice uses asymmetric encryption to wrap the symmetric key with Bob's public key
+2. Alice uses asymmetric encryption to wrap the symmetric key with Bob's public
+   key
 3. Alice sends both the encrypted message and wrapped key to Bob.
 
-Bob uses his private key to unwrap the symmetric key, and then uses that to decrypt the message.
+Bob uses his private key to unwrap the symmetric key, and then uses that to
+decrypt the message.
 
-Examples: [Transport Layer Security](https://en.wikipedia.org/wiki/Transport_Layer_Security) (TLS) and [OpenPGP](https://tools.ietf.org/html/rfc4880#section-2).
+TLS and OpenPGP both work like this.
 </script></section><section  data-markdown><script type="text/template">
-## ECIES
+## ECIES hybrid scheme
+
+A bit different:
 
 - Don't wrap the symmetric key
-- Instead use elliptic curve Diffie-Helman (ECDH) key agreement to enable both Alice and Bob to derive it.
+- Instead use elliptic curve Diffie-Helman (ECDH) key agreement to enable both
+  Alice and Bob to derive it.
 
 ECIES is used by Google Pay and Ethereum.
 </script></section><section  data-markdown><script type="text/template">
 ## Other interesting feature of ECIES
 
-- Instead of using her private key, Alice creates a single-use "ephemeral" key pair for her end of the key agreement.
+- Instead of using her private key, Alice creates a single-use "ephemeral" key
+  pair for her end of the key agreement.
+
   - This ensures that the symmetric key is different for every message sent.
 
 - Use a  KDF to generate the symmetric key from the ECDH shared secret.
 
 - Use a MAC so Bob can verify that the message has not been tampered with.
+
   - The MAC key is also derived from the shared secret using the KDF.
 </script></section><section  data-markdown><script type="text/template">
 ## ECIES in detail
 
+Three phases:
+
 1. Preparation
+
 2. Alice sends a message to Bob
+
 3. Bob checks and decrypts the message
 </script></section><section  data-markdown><script type="text/template">
 ## Preparation
 
-1. Alice and Bob agree on a choice of elliptic curve, KDF, symmetric encryption algorithm and MAC algorithm.
-2. Bob generates an EC public/private key pair and sends Alice his public key, for example by publishing it in an X509 certificate.
+1. Alice and Bob agree on a choice of elliptic curve, KDF, symmetric encryption
+   algorithm and MAC algorithm
+
+2. Bob generates an EC public/private key pair and sends Alice his public key,
+   for example by publishing it in an X509 certificate
 </script></section><section  data-markdown><script type="text/template">
 ## Alice sends Bob a message
 
-1. Alice generates an ephemeral EC public/private key pair, to be used for this message only.
-2. Alice uses ECDH with the ephemeral private key and Bob's public key to generate a shared secret.
-3. Alice destroys the ephemeral private key.
-4. Alice uses the KDF to derive a symmetric key and MAC key from the shared secret.
-5. Alice encrypts her message using the symmetric algorithm and the derived symmetric key.
-6. Alice computes a MAC of the encrypted message using the derived MAC key.
-7. Alice sends the ephemeral public key, the MAC output and the ciphertext to Bob.
-</script></section><section  data-markdown><script type="text/template">
-## Bob authenticates and decrypts the message
+1. Alice generates an ephemeral EC public/private key pair
 
-1. Bob uses ECDH with his private key and Alice's ephemeral public key to derive the shared secret.
-2. Bob uses the KDF to derive the symmetric key and the MAC key.
-3. Bob verifies the integrity of the ciphertext by computing the MAC and comparing it to the received value.
-4. Bob decrypts the ciphertext using the derived symmetric key.
+2. Uses ECDH with the ephemeral private key and Bob's public key to generate a
+   shared secret
+
+3. Destroys the ephemeral private key
+
+4. Uses the KDF to derive symmetric MAC keys from the shared secret
+
+5. Encrypts the message using the derived symmetric key
+
+6. Computes a MAC of the ciphertext using the derived MAC key
+
+7. Sends Bob the ephemeral public key, the MAC and the ciphertext
+</script></section><section  data-markdown><script type="text/template">
+## Bob authenticates and decrypts
+
+1. Bob uses ECDH with his private key and Alice's ephemeral public key to derive
+   the shared secret
+
+2. Uses the KDF to derive the symmetric key and the MAC key
+
+3. Verifies the integrity of the ciphertext by computing the MAC and comparing
+   it to the received value
+
+4. Decrypts the ciphertext using the derived symmetric key
 </script></section><section  data-markdown><script type="text/template">
 ## Variations on ECIES
 
-- Use authenticated encryption (e.g. AES/GCM) instead of separate symmetric encryption and MAC operations.
+- Use authenticated encryption (e.g. AES/GCM) instead of separate symmetric
+  encryption and MAC operations.
 
-- Streaming mode: don't use a symmetric cipher, instead use the KDF to generate key material the same length as the plaintext message, and generates the ciphertext by XORing the plaintext and the key material bit streams.
+- Streaming mode: don't use a symmetric cipher, instead use the KDF to generate
+  key material the same length as the plaintext message, and generates the
+  ciphertext by XORing the plaintext and the key material bit streams.
 </script></section><section  data-markdown><script type="text/template">
 ## ECIES in Java
 
@@ -103,7 +133,8 @@ Two options:
 - Tink
   - built on top of the existing Java cryptography providers
   - does not use the standard JCE API
-  - uses trusted implementations of ECDH key agreement on chosen curves and authenticated encryption with 128-bit AES/GCM
+  - uses trusted implementations of ECDH key agreement on chosen curves and
+    authenticated encryption with 128-bit AES/GCM
 </script></section><section  data-markdown><script type="text/template">
 ### BouncyCastle
 
@@ -138,13 +169,14 @@ And here's the output:
 
 ```txt
 message = 68656c6c6f
-ciphertext = 0448c28c1c293228b31d06227b61be0ec09510d9f6e629dcdef0f93b9128a3813ee573412108f3157b23dea
-f71036f268d39c28d511e2ed4ee80af42e66aa311b19ac904518220c422075d72e15f1b640337526bf93159d4c719635f0ca
-54ffec77872d89b
+ciphertext = 0448c28c1c293228b31d06227b61be0ec09510d9f6e629dcdef0f93b9128a3813ee
+573412108f3157b23deaf71036f268d39c28d511e2ed4ee80af42e66aa311b19ac904518220c4220
+75d72e15f1b640337526bf93159d4c719635f0ca54ffec77872d89b
 plaintext = 68656c6c6f
 ```
 
-The `ciphertext` byte array is much longer than the plaintext message because it contains the ephemeral public key and the MAC output as well as the actual encrypted message.
+The ciphertext is much longer than the plaintext message because it contains the
+ephemeral public key and the MAC output as well as the actual encrypted message.
 </script></section><section  data-markdown><script type="text/template">
 ### Tink
 
@@ -176,9 +208,9 @@ And again, here's the output:
 
 ```txt
 message = 68656c6c6f
-ciphertext = 01743b2309040f3f72d9be18ba7a1ead7f9e125ef10e089dd43b53b99f1d33c73132c9575b07ac24ea7d0c6
-04d3a6a072366556a9acfe7e7c2c4919cf2088b096533cb42ad17f45f8e7f18f38dc631081d51bca62573e5354241e7f0fb4
-22ae42985cac9d4f235
+ciphertext = 01743b2309040f3f72d9be18ba7a1ead7f9e125ef10e089dd43b53b99f1d33c7313
+2c9575b07ac24ea7d0c604d3a6a072366556a9acfe7e7c2c4919cf2088b096533cb42ad17f45f8e7
+f18f38dc631081d51bca62573e5354241e7f0fb422ae42985cac9d4f235
 plaintext = 68656c6c6f
 ```
 </script></section><section  data-markdown><script type="text/template">
@@ -186,52 +218,88 @@ plaintext = 68656c6c6f
 
 Four categories of potential weaknesses:
 
-- those inherent to the design of ECIES,
-- incorrect implementation of the scheme,
-- weaknesses in elliptic curve crypto, and
-- weaknesses in the other cryptographic primitives used to implement the scheme.
+- those inherent to the design of ECIES
+
+- incorrect implementation of the scheme
+
+- weaknesses in elliptic curve crypto
+
+- weaknesses in the other cryptographic primitives used to implement the scheme
 </script></section><section  data-markdown><script type="text/template">
 ## Inherent limitations
 
-Even if correctly implemented and used, ECIES isn't going to be the right choice for all applications. In particular there are some aspects of the design that may make it unsuitable for you:
+- Bob has no guarantee that a message really came from Alice
 
-- With ECIES, Bob has no guarantee that a message really came from Alice.
-- ECIES also doesn't offer forward security: if Bob's private key is compromised, all past, present and future messages can be decrypted.
-
-There's not much you can do about this sort of thing. If either of these is a problem for you, don't use ECIES.
+- No forward security: if Bob's private key is compromised, all past, present
+  and future messages can be decrypted
 </script></section><section  data-markdown><script type="text/template">
 ## Incorrect implementation of the scheme
 
-If your implementation of ECIES doesn't follow the steps correctly, then you're not really doing ECIES, and that could lead to vulnerabilities.
+**Example:** Alice uses her long-term key pair instead of generating a new
+ephemeral key pair for each message.
 
-An example of this might be if Alice used her long-term key pair for the ECDH key agreement instead of generating a new ephemeral key pair for each message. This would mean that the same symmetric key would end up being used for all messages from Alice to Bob. And that's a problem for two reasons:
+**Consequence:** The same symmetric key gets used for all messages from Alice to
+Bob.
 
-- because it gives an attacker a better chance of obtaining those keys, and
-- because instead of only letting the attacker decrypt one message, that key would decrypt all past, present and future messages between Alice and Bob.
+That's a problem for two reasons:
 
-This sort of problem can be prevented by using one of the standard implementations as shown above. In the case of BouncyCastle, make sure to use a recent version. Older versions required the application programmer to create the ephemeral key pair as a separate step, making it too easy to mess this up.
+- it gives an attacker a better chance of obtaining the key
+- that key would decrypt all past, present and future messages between Alice and
+  Bob
+
+Old BouncyCastle versions made this easy, and the test code made no distinction
+between long-term and ephemeral keys.
 </script></section><section  data-markdown><script type="text/template">
 ## Elliptic curve cryptographic weaknesses
 
-Weaknesses in the ECDH key agreement step basically come down to the choice of curve.
+Weaknesses in the ECDH key agreement step (and in EC crypto generally) basically
+come down to the choice of curve.
 
-- Curves with keys that are less than 256 bits are now generally considered to be too short.
-- Even if the keys are long enough, some curves are known to have weaknesses that make cryptanalysis easier than their length would suggest.
+- Curves with keys that are less than 256 bits are now generally considered to
+  be too short
 
-These problems can be avoided by choosing a well-known standard curve with keys at least 256 bits in length. Both the examples above use the NIST P-256 curve, which many people think is a reasonable choice. If you're worried that the [NSA might have influenced NIST's choice of curves](https://www.schneier.com/blog/archives/2013/09/the_nsa_is_brea.html#c1675929), maybe use a non-NIST alternative like [Curve25519](https://en.wikipedia.org/wiki/Curve25519) instead.
+- Even if the keys are long enough, some curves are known to have weaknesses
+  that make cryptanalysis easier than their length would suggest.
+
+Choose a well-studied standard curve with keys at least 256 bits in length.
+</script></section><section  data-markdown><script type="text/template">
+## Safe curves?
+
+Both examples use the NIST P-256 curve. However some people think the NSA might
+have influenced NIST's choice of curves. Schneier:
+
+> I no longer trust the constants. I believe the NSA has manipulated them
+> through their relationships with industry.
+
+In that case maybe use a non-NIST alternative like Curve25519 instead.
+
+And see the Safe Curves project: <https://safecurves.cr.yp.to/>
 </script></section><section  data-markdown><script type="text/template">
 ## Weaknesses in the components
 
-Even if the ECIES steps are followed correctly, if the cryptographic primitives it uses are weak, then the result will be weak also. This applies to:
+Even if the ECIES steps are followed correctly, if the cryptographic primitives
+it uses are weak, then the result will be weak also.
+
+This applies to:
 
 - the KDF
 - the symmetric encryption algorithm
 - the MAC
 
-The library implementations above make sound choices. If you use the BouncyCastle library through their own API rather than the standard JCE API, then you have the freedom to make your own (bad) choices. We don't recommend that.
+If you use BouncyCastle library through its own API rather than the standard JCE
+API, then you have the freedom to make your own (bad) choices.
+</script></section><section  data-markdown><script type="text/template">
+## BouncyCastle ECIES CVEs
 
-Older versions of the BouncyCastle provider had weaknesses in the symmetric encryption: use of ECB mode (see CVE-2016-1000352) and a version of CBC mode that was vulnerable to a padding oracle attack (see CVE-2016-1000345). These bugs were fixed in version 1.56, released in December 2016. Anyone using an older version of the BouncyCastle provider should upgrade as soon as possible.
-</script></section></div>
+Older versions of BouncyCastle used weak symmetric encryption:
+
+- ECB mode (CVE-2016-1000352)
+
+- a version of CBC mode that was vulnerable to a padding oracle attack
+  (CVE-2016-1000345)
+
+These bugs were fixed in version 1.56 (December 2016)
+</script></section><section  data-markdown><script type="text/template"></script></section></div>
     </div>
 
     <script src="./js/reveal.js"></script>

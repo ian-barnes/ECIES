@@ -4,7 +4,10 @@
 }
 
 .reveal blockquote {
-  width: 100%;
+  width: 80%;
+  padding:1em;
+  padding-top:0;
+  padding-bottom:0;
 }
 
 .reveal h2 {
@@ -18,8 +21,8 @@
 }
 
 .reveal pre code {
-  width: 100%;
-  font-size: 60%;
+  width: 110%;
+  font-size: 80%;
   line-height: 1.2em;
   max-height: 80%;
 }
