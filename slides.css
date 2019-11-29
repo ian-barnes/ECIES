@@ -8,6 +8,7 @@
   padding:1em;
   padding-top:0;
   padding-bottom:0;
+  font-size:80%;
 }
 
 .reveal h2 {
@@ -29,7 +30,7 @@
 
 .reveal ul,
 .reveal ol{
-  font-size: 80%; 
+  font-size: 90%;
 }
 
 .reveal ul li ul,
@@ -41,5 +42,5 @@
 .reveal ul li,
 .reveal ol li
 {
-  font-size: 100%;
+  font-size: 90%;
 }

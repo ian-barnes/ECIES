@@ -141,7 +141,7 @@ Two options:
 
 - BouncyCastle
   - via standard JCE API with a `Cipher` object with algorithm `ECIES`
-
+  - OR via BouncyCastle's own API
 - Tink
   - built on top of the existing Java cryptography providers
   - does not use the standard JCE API
@@ -196,6 +196,32 @@ ephemeral public key and the MAC output as well as the actual encrypted message.
 
 ---
 
+## Parameters
+
+```json
+"3": {
+  "hashCode": 835227336,
+  "provider": {
+    "name": "BC",
+    "version": "1.63"
+  },
+  "algorithm": "IES",
+  "spec": {
+    "type": "IESParameterSpec",
+    "value": {
+      "cipherKeySize": 128,
+      "derivationVector": null,
+      "encodingVector": null,
+      "macKeySize": 128,
+      "nonce": "a8e47da193ae794d0f98f92fc65b86fc",
+      "pointCompression": false
+    }
+  }
+},
+```
+
+---
+
 ### Tink
 
 ```java
@@ -236,6 +262,25 @@ plaintext = 68656c6c6f
 
 ---
 
+## Context info
+
+Second argument to the `encrypt` and `decrypt` methods
+
+> contextInfo can be empty or null, but to ensure the correct decryption of
+> the resulting ciphertext the same value must be provided for decryption
+> operation (cf. HybridDecrypt).
+>
+> A concrete instantiation of this interface can implement the binding of
+> contextInfo to the ciphertext in various ways, for example:
+>
+> - use `contextInfo` as "associated data"-input for the employed AEAD symmetric
+>   encryption.
+>
+> - use `contextInfo` as "CtxInfo"-input for HKDF (if the implementation uses
+>   HKDF as key derivation function).
+
+---
+
 ## How not to screw up ECIES
 
 Four categories of potential weaknesses:
@@ -267,14 +312,34 @@ ephemeral key pair for each message.
 **Consequence:** The same symmetric key gets used for all messages from Alice to
 Bob.
 
-That's a problem for two reasons:
-
-- it gives an attacker a better chance of obtaining the key
-- that key would decrypt all past, present and future messages between Alice and
+- This gives an attacker a better chance of obtaining the key
+- That key would decrypt all past, present and future messages between Alice and
   Bob
 
 Old BouncyCastle versions made this easy, and the test code made no distinction
 between long-term and ephemeral keys.
+
+It's still possible with BC but you have to set out to do it.
+
+---
+
+## How to subvert BouncyCastle ECIES
+
+Instead of passing just Bob's public key to the cipher object in the `init`
+call
+
+```java
+cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+```
+
+pass it an `IEKeySpec` containing Bob's public key and Alice's private key. It
+uses Alice's private key for the encryption instead of creating an ephemeral key
+pair.
+
+```java
+IEKeySpec ieKeySpec = new IEKeySpec(alicePriv, bobPub);
+cipher.init(Cipher.ENCRYPT_MODE, ieKeySpec);
+```
 
 ---
 
@@ -296,10 +361,10 @@ Choose a well-studied standard curve with keys at least 256 bits in length.
 ## Safe curves?
 
 Both examples use the NIST P-256 curve. However some people think the NSA might
-have influenced NIST's choice of curves. Schneier:
+have influenced NIST's choice of curves.
 
 > I no longer trust the constants. I believe the NSA has manipulated them
-> through their relationships with industry.
+> through their relationships with industry. ---Bruce Schneier
 
 In that case maybe use a non-NIST alternative like Curve25519 instead.
 
